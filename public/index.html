@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GrünstromIndex CarbonTracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <link rel="stylesheet" href="./css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="./js/app.js" defer></script>
+    <script src="./js/chartSetup.js" defer></script>
+    <script src="./js/eventHistory.js" defer></script>
+</head>
+<body>
+    <div class="container mt-5" style="">
+        <h1>GrünstromIndex CarbonTracker</h1>
+       <div id="withoutForecast">
+          <div class="input-group">
+            <span class="input-group-text" id="basic-addon1"><label for="postalCode">Postleitzahl:</label></span>
+            <input type="text" class="form-control" id="postalCode" placeholder="(Beispiel: 10115 für Berlin)" required> 
+             <button class="btn btn-primary" id="fetchForecast">Vorhersage abrufen</button>
+          </div>
+        </div>
+        <div id="withForecast" style="display:none;width:100%;" class="w-100">
+          <div id="forecastResult" class="responsive">
+              <canvas id="forecastChart" class="w-100"></canvas>
+          </div>
+          <div class="form-group" style="display:none">
+              <label for="startTime">Select Start Time for Consumption:</label>
+              <input type="datetime-local" class="form-control" id="startTime" style="display:none;" required>
+          </div>
+          <button class="btn btn-success" id="startConsumption" style="margin-top:25px;">Stromverbrauch starten</button>
+          <div id="eventIdentifier" class="mt-3"></div>
+          <div id="timerDisplay" class="mt-3" style="display:none;">Laufzeit: <span id="timeElapsed">00:00:00</span></div>
+        
+          <div class="input-group" id="consumptionInput" style="display:none;">
+            <span class="input-group-text"><label for="consumedWh">Gemessener Stromverbrauch:</label></span>
+            <input type="number" class="form-control" id="consumedWh" placeholder="(Stromverbrauch seit Start)" required>
+            <span class="input-group-text">Wh</span>
+            <button class="btn btn-danger" id="commitConsumption" style="display:none;">speichern</button>
+          </div>
+          <button class="btn btn-danger" id="stopConsumption" style="display:none;">Stromverbrauch beenden</button>
+         
+          <div id="consumptionResult" class="mt-3"></div>
+        </div>
+        <button class="btn btn-info mt-3" id="viewHistory">Beendete Verbrauchsvorgänge</button>
+        <div id="historyModal" class="modal fade" tabindex="-1" role="dialog">
+          <div class="modal-dialog" role="document">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">Beendete Verbrauchsvorgänge</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+              </div>
+              <div class="modal-body">
+                <div id="summarySection" class="mt-3"></div> <!-- Summary section moved inside modal -->
+                <div id="historyContent">
+                  <!-- Dynamic history content will be injected here -->
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">schließen</button>
+              </div>
+            </div>
+          </div>
+        </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+</body>
+</html>
