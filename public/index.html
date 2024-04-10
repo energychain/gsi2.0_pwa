@@ -7,20 +7,40 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     <link rel="stylesheet" href="./css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://kit.fontawesome.com/478bde1060.js" crossorigin="anonymous"></script>
     <script src="./js/app.js" defer></script>
     <script src="./js/chartSetup.js" defer></script>
     <script src="./js/eventHistory.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.min.js" crossorigin="anonymous"></script>
+    <script src="./js/mqttHandlers.js" defer></script> <!-- Added mqttHandlers.js script -->
 </head>
 <body>
-    <div class="container mt-5" style="">
-        <h1>GrünstromIndex CarbonTracker</h1>
-       <div id="withoutForecast">
-          <div class="input-group">
-            <span class="input-group-text" id="basic-addon1"><label for="postalCode">Postleitzahl:</label></span>
-            <input type="text" class="form-control" id="postalCode" placeholder="(Beispiel: 10115 für Berlin)" required> 
-             <button class="btn btn-primary" id="fetchForecast">Vorhersage abrufen</button>
+  <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">GrünstromIndex CarbonTracker</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarCollapse">
+        <ul class="navbar-nav me-auto mb-2 mb-md-0">
+          <li class="nav-item">
+            <button class="btn btn-info" id="viewHistory">Historie</button>
+          </li>
+        </ul>  
+          <div id="withoutForecast" class="d-flex">
+            <div class="input-group">
+              <span class="input-group-text" id="basic-addon1"><label for="postalCode">Postleitzahl</label></span>
+              <input type="text" class="form-control" id="postalCode" placeholder="(Beispiel: 10115 für Berlin)" required> 
+              <button class="btn btn-primary" id="fetchForecast">Vorhersage</button>
+            </div>
           </div>
-        </div>
+          <button class="btn btn-secondary ms-auto" type="button" data-bs-toggle="modal" data-bs-target="#mqttSettingsModal">
+              <i class="fas fa-cog"></i>
+          </button>
+      </div>
+    </div>
+  </nav>
+    <div class="container mt-5" style="">
         <div id="withForecast" style="display:none;width:100%;" class="w-100">
           <div id="forecastResult" class="responsive">
               <canvas id="forecastChart" class="w-100"></canvas>
@@ -29,21 +49,54 @@
               <label for="startTime">Select Start Time for Consumption:</label>
               <input type="datetime-local" class="form-control" id="startTime" style="display:none;" required>
           </div>
-          <button class="btn btn-success" id="startConsumption" style="margin-top:25px;">Stromverbrauch starten</button>
-          <div id="eventIdentifier" class="mt-3"></div>
-          <div id="timerDisplay" class="mt-3" style="display:none;">Laufzeit: <span id="timeElapsed">00:00:00</span></div>
-        
-          <div class="input-group" id="consumptionInput" style="display:none;">
+          <button class="btn btn-success" id="startConsumption" style="margin-top:25px;" title="Stromverbrauch starten"><i class="fas fa-play"></i></button>
+          <div id="runningConsumption" style="display:none;margin-top:25px;padding:0 0 0 0;text-align: center;" class="w-100">
+            <div class="row w-100" style="margin-bottom:25px;">
+              <div class="col col-4">
+                <div class="card h-100">
+                  <div class="card-header card-title fw-bold">
+                    Kennung
+                  </div>
+                  <div class="card-body">
+                    <div id="eventIdentifier" class="display-4"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="col col-4">
+                <div class="card h-100">
+                  <div class="card-header card-title fw-bold">
+                    Laufzeit
+                  </div>
+                  <div class="card-body">
+                    <span id="timeElapsed" class="display-4">00:00:00</span>
+                  </div>
+                </div>
+              </div>
+              <div class="col col-4">
+                <div class="card h-100">
+                  <div class="card-header card-title fw-bold">
+                    Verbrauch
+                  </div>
+                  <div class="card-body">
+                    <span id="consumption" class="display-5">(ausstehend)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style="text-align: center;">
+              <button class="btn btn-danger" id="stopConsumption" title="Stromverbrauch beenden"><i class="fas fa-stop"></i></button>
+            </div>
+          </div>
+
+                  <div class="input-group" id="consumptionInput" style="display:none;">
             <span class="input-group-text"><label for="consumedWh">Gemessener Stromverbrauch:</label></span>
             <input type="number" class="form-control" id="consumedWh" placeholder="(Stromverbrauch seit Start)" required>
             <span class="input-group-text">Wh</span>
             <button class="btn btn-danger" id="commitConsumption" style="display:none;">speichern</button>
           </div>
-          <button class="btn btn-danger" id="stopConsumption" style="display:none;">Stromverbrauch beenden</button>
-         
           <div id="consumptionResult" class="mt-3"></div>
         </div>
-        <button class="btn btn-info mt-3" id="viewHistory">Beendete Verbrauchsvorgänge</button>
+      
         <div id="historyModal" class="modal fade" tabindex="-1" role="dialog">
           <div class="modal-dialog" role="document">
             <div class="modal-content">
@@ -66,8 +119,35 @@
           </div>
         </div>
     </div>
+    <div class="modal fade" id="mqttSettingsModal" tabindex="-1" aria-labelledby="mqttSettingsModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="mqttSettingsModalLabel">MQTT Einstellungen</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="mqttSettingsForm">
+              <div class="mb-3">
+                <label for="mqttHostname" class="form-label">Hostname</label>
+                <input type="text" class="form-control" id="mqttHostname" placeholder="z.B. broker.hivemq.com" value ="broker.hivemq.com" required> 
+              </div>
+              <div class="mb-3">
+                <label for="mqttPort" class="form-label">Port</label>
+                <input type="number" class="form-control" id="mqttPort" placeholder="8884" value="8884" required>
+              </div>
+              <!-- Add additional MQTT configuration fields as necessary -->
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+            <button type="button" class="btn btn-primary" id="saveMqttSettings">Speichern</button>
+          </div>
+        </div>
+      </div>
+    </div>
     <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 // This function will be called with the forecast data to render the chart
-function renderForecastChart(forecastData) {
+function renderForecastChart(forecastData,city) {
     const ctx = document.getElementById('forecastChart').getContext('2d');
     
     // Check if the chart instance already exists
@@ -45,6 +45,11 @@ function renderForecastChart(forecastData) {
                 plugins: {
                     legend: {
                         display: false
+                    },
+                    title: {
+                        display: true,
+                        text: city,
+                        font: {weight: 'bold'}
                     }
                 }
             }

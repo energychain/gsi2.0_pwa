@@ -10,7 +10,6 @@
     --chart-bg-color: #ffffff;
     --chart-border-color: #2a9d8f;
 }
-
 body {
     font-family: 'Arial', sans-serif;
     margin: 0;
@@ -51,6 +50,15 @@ body {
 }
 
 .btn:hover {
+    background-color: var(--button-hover-bg-color);
+}
+
+/* Style adjustments for the gear icon in the navbar */
+.navbar .btn-secondary {
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-color);
+}
+.navbar .btn-secondary:hover {
     background-color: var(--button-hover-bg-color);
 }
 

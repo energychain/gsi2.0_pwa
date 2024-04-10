@@ -143,10 +143,10 @@ function renderHistoryTable(events, summary) {
     const thead = document.createElement('thead');
     thead.innerHTML = `
         <tr>
-            <th>Start</th>
-            <th>Ende</th>
-            <th>Stromverbrauch (Wh)</th>
-            <th>CO<sub>2</sub> (g)</th>
+            <th>Start (Zeitpunkt)</th>
+            <th>Ende (Zeitpunkt)</th>
+            <th>Verbrauch (Wh)</th>
+            <th>Emission (g&nbsp;CO<sub>2</sub>)</th>
         </tr>
     `;
     table.appendChild(thead);
@@ -171,10 +171,10 @@ function renderHistoryTable(events, summary) {
     // Pagination controls
     const paginationControls = document.createElement('div');
     paginationControls.className = 'pagination-controls';
-    paginationControls.innerHTML = `
+    paginationControls.innerHTML = `<div style="text-align:center">
         <button id="prevPage" class="btn btn-secondary">&laquo;</button>
         <span id="currentPageIndicator"></span>
-        <button id="nextPage" class="btn btn-secondary">&raquo;</button>
+        <button id="nextPage" class="btn btn-secondary">&raquo;</button></div>
     `;
 
     historyContentEl.appendChild(paginationControls);

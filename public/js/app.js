@@ -32,14 +32,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     renderHistoryTable(events, summary);
 
                     const historyContentEl = document.getElementById('historyContent');
-                    // Pagination controls
-                    const paginationControls = document.createElement('div');
-                    paginationControls.innerHTML = `
-                        <button id="prevPage" ${currentPage === 1 ? 'disabled' : ''} class="btn btn-default">Previous</button>
-                        <span>Page ${currentPage}</span>
-                        <button id="nextPage" ${!hasMore ? 'disabled' : ''} class="btn btn-default">Next</button>
-                    `;
-               
                     document.getElementById('prevPage').addEventListener('click', () => {
                         if (currentPage > 1) {
                             currentPage -= 1;
@@ -65,17 +57,54 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initially hide the "Enter consumed Wh" input field
     document.getElementById('consumedWh').style.display = 'none';
 
-    // Check if Service Worker API is available
+    document.getElementById('saveMqttSettings').addEventListener('click', function() {
+        const hostname = document.getElementById('mqttHostname').value.trim();
+        const port = document.getElementById('mqttPort').value.trim();
+
+        // Validate the input values for correctness and completeness
+        if (!hostname || !port) {
+            alert('Bitte füllen Sie alle Felder korrekt aus.');
+            return;
+        }
+
+        // Validation for port to be a number
+        if (isNaN(port) || port <= 0 || port > 65535) {
+            alert('Bitte geben Sie eine gültige Portnummer ein (1-65535).');
+            return;
+        }
+
+        // If validation passes, save the MQTT settings to localStorage
+        localStorage.setItem('mqttSettings', JSON.stringify({ hostname, port }));
+        
+        // Close the modal after saving
+        $('#mqttSettingsModal').modal('hide');
+        console.log('MQTT settings saved successfully.');
+    });
+
+    // Listen for custom event to update consumedWh input field with the last received value
+    document.addEventListener('mqttMessageReceived', function(e) {
+        const consumedWh = e.detail.consumedWh;
+        $('#consumption').html(consumedWh);
+        $('#consumedWh').val(consumedWh);
+        console.log('MQTT message received, updating consumedWh input field.');
+    });
+
+    // Register service worker and handle incoming MQTT messages
     if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js')
-                .then(registration => {
-                    // Registration was successful
-                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                }, err => {
-                    // registration failed :(
-                    console.error('ServiceWorker registration failed: ', err);
-                });
+        navigator.serviceWorker.register('./sw.js').then(function(registration) {
+            console.log('Service Worker registered with scope:', registration.scope);
+        }).catch(function(err) {
+            console.error('Service Worker registration failed:', err);
+        });
+
+        navigator.serviceWorker.addEventListener('message', function(event) {
+            console.log('Received message from service worker:', event.data);
+            if (event.data.type === 'MQTT_DATA') {
+                const data = JSON.parse(event.data.data); // Assuming the data is a JSON string
+                const consumedWh = data.consumedWh; // Extracting the consumedWh value
+                document.getElementById('consumption').textContent = consumedWh + ' Wh'; // Updating the UI
+                console.log('Updated consumption in the UI with the latest value from MQTT:', consumedWh);
+            }
         });
     }
 });
@@ -97,7 +126,6 @@ function fetchForecast() {
             return response.json();
         })
         .then(data => {
-            console.log('Forecast data received:', data);
             $('#withForecast').show();
             $('#withoutForecast').hide();
             // Prepare data for the chart
@@ -110,7 +138,7 @@ function fetchForecast() {
            
             const co2Intensities = rawData.map(hourlyData => hourlyData.co2_g_oekostrom);
 
-            renderForecastChart({labels, data: co2Intensities});
+            renderForecastChart({labels, data: co2Intensities},data.location.zip + ' '+data.location.city);
             console.log('Forecast data prepared and passed to renderForecastChart function.');
         })
         .catch(error => {
@@ -137,18 +165,16 @@ function startConsumption() {
         })
         .then(data => {
             const eventIdentifier = data.event;
-            document.getElementById('eventIdentifier').innerHTML = `Stromverbrauch gestartet: ${eventIdentifier}`;
-            document.getElementById('stopConsumption').style.display = 'block'; // Display the stop button
+            const dspeID = eventIdentifier.substring(0,7);
+            document.getElementById('eventIdentifier').innerHTML = `${dspeID}...`;
+            document.getElementById('eventIdentifier').title = `${eventIdentifier}`;
             document.getElementById('startConsumption').style.display = 'none'; // Hide start button
-            // Make the "Enter consumed Wh" input field visible and update its label
             document.getElementById('consumedWh').style.display = 'block';
-//            document.querySelector('label[for="consumedWh"]').textContent = `Verbrauch für ${eventIdentifier} erfassen:`;
-            // Store event ID for stopping consumption
             sessionStorage.setItem('eventID', eventIdentifier);
             console.log('Ereignis:', eventIdentifier);
-            // Start timer
+            $('#runningConsumption').show();
+            $('#forecastResult').hide();
             startTimestamp = Date.now();
-            document.getElementById('timerDisplay').style.display = 'block';
             consumptionTimer = setInterval(() => {
                 const elapsedTime = Date.now() - startTimestamp;
                 const hours = Math.floor(elapsedTime / 3600000).toString().padStart(2, '0');
@@ -156,6 +182,11 @@ function startConsumption() {
                 const seconds = Math.floor((elapsedTime % 60000) / 1000).toString().padStart(2, '0');
                 document.getElementById('timeElapsed').textContent = `${hours}:${minutes}:${seconds}`;
             }, 1000);
+
+            // After starting consumption, post MQTT settings to the service worker
+            const mqttSettings = JSON.parse(localStorage.getItem('mqttSettings'));
+            setupMQTTConnection(eventIdentifier);
+            
         })
         .catch(error => {
             console.error('Failed to start consumption tracking:', error);
@@ -165,15 +196,19 @@ function startConsumption() {
 
 function stopConsumption() {
     const eventID = sessionStorage.getItem('eventID');
-    const consumedWhInput = document.getElementById('consumedWh').value;
-    const consumedWhNumber = parseInt(consumedWhInput);
-    const endTimestamp = Date.now();
     window.clearInterval(consumptionTimer);
     if (!eventID) {
         alert('No consumption event to stop.');
         return;
     } else {
+        $('#runningConsumption').hide();
         $('#eventIdentifier').hide();
+        // Retrieve the last received MQTT message from sessionStorage
+        const lastMQTTMessage = sessionStorage.getItem('lastMQTTMessage');
+        if (lastMQTTMessage) {
+            const lastConsumedWh = JSON.parse(lastMQTTMessage).consumedWh;
+            document.getElementById('consumedWh').value = lastConsumedWh; // Pre-fill the 'consumedWh' input with the last received value
+        }
         $('#consumptionInput').show();
         $('#stopConsumption').hide();
         $('#commitConsumption').show();
@@ -208,7 +243,6 @@ function commitConsumption() {
             sessionStorage.removeItem('eventID');
             clearInterval(consumptionTimer);
             $('#commitConsumption').hide();
-            document.getElementById('timerDisplay').style.display = 'none';
             document.getElementById('timeElapsed').textContent = '00:00:00';
             document.getElementById('consumptionInput').style.display = 'none';
             document.getElementById('consumedWh').value = '';
