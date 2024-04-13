@@ -81,7 +81,7 @@ function handleMQTTConnection(settings) {
       reconnectAttempts = 0; // Reset reconnect attempts upon successful connection
       const eventID = settings.eventID;
       if (eventID) {
-        const topic = `/someRoot/${eventID}/consumption`;
+        const topic = `/gsitracker/${eventID}/consumption`;
         client.subscribe(topic);
         console.log(`Subscribed to topic: ${topic}`);
       } else {

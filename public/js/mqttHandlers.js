@@ -31,7 +31,7 @@ function setupMQTTConnection(eventID) {
         onSuccess: function() {
             console.log("MQTT Client Connected");
             // Subscribe to the topic once connected
-            const topic = `/someRoot/${eventID}/consumption`;
+            const topic = `/gsitracker/${eventID}/consumption`;
             mqttClient.subscribe(topic, {
                 onSuccess: function() {
                     console.log(`Successfully subscribed to topic: ${topic}`);

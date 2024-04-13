@@ -1,4 +1,4 @@
-const dbRequest = indexedDB.open("gsi2.0", 1);
+const dbRequest = indexedDB.open("gsitracker", 1);
 
 dbRequest.onupgradeneeded = function(event) {
     const db = event.target.result;
@@ -9,6 +9,8 @@ dbRequest.onupgradeneeded = function(event) {
         eventHistoryStore.createIndex('consumptionWh', 'consumptionWh', { unique: false });
         eventHistoryStore.createIndex('footprint', 'footprint', { unique: false });
         eventHistoryStore.createIndex('eventId', 'eventId', { unique: true });
+        eventHistoryStore.createIndex('profile', 'profile', { unique: true });
+        eventHistoryStore.createIndex('zipcode', 'zipcode', { unique: true });
     }
 };
 
@@ -17,7 +19,7 @@ dbRequest.onerror = function(event) {
 };
 
 function addEventHistory(eventData) {
-    const dbConnection = indexedDB.open("gsi2.0");
+    const dbConnection = indexedDB.open("gsitracker");
     dbConnection.onsuccess = function(event) {
         const db = event.target.result;
         const transaction = db.transaction(["eventHistory"], "readwrite");
@@ -27,7 +29,9 @@ function addEventHistory(eventData) {
             endTimestamp: eventData.endTimestamp,
             consumptionWh: eventData.consumptionWh,
             footprint: eventData.footprint,
-            eventId: eventData.eventId
+            eventId: eventData.eventId,
+            profile:eventData.profile,
+            zipcode:eventData.zipcode
         });
 
         request.onsuccess = function() {
@@ -45,7 +49,7 @@ function addEventHistory(eventData) {
 }
 
 function fetchEventHistory(callback, pageNumber = 1, pageSize = 5) {
-    const dbConnection = indexedDB.open("gsi2.0");
+    const dbConnection = indexedDB.open("gsitracker");
     dbConnection.onsuccess = function(event) {
         const db = event.target.result;
         const transaction = db.transaction(["eventHistory"], "readonly");
@@ -92,7 +96,7 @@ function fetchEventHistory(callback, pageNumber = 1, pageSize = 5) {
 }
 
 function fetchEventSummary(callback) {
-    const dbConnection = indexedDB.open("gsi2.0");
+    const dbConnection = indexedDB.open("gsitracker");
     dbConnection.onsuccess = function(event) {
         const db = event.target.result;
         const transaction = db.transaction(["eventHistory"], "readonly");
@@ -145,6 +149,7 @@ function renderHistoryTable(events, summary) {
         <tr>
             <th>Start (Zeitpunkt)</th>
             <th>Ende (Zeitpunkt)</th>
+            <th>Bezugsort</th>
             <th>Verbrauch (Wh)</th>
             <th>Emission (g&nbsp;CO<sub>2</sub>)</th>
         </tr>
@@ -158,6 +163,7 @@ function renderHistoryTable(events, summary) {
         tr.innerHTML = `
             <td>${new Date(event.startTimestamp).toLocaleString()}</td>
             <td>${new Date(event.endTimestamp).toLocaleString()}</td>
+            <td>${event.zipcode}</td>
             <td>${event.consumptionWh}</td>
             <td>${event.footprint}</td>
         `;
@@ -238,7 +244,7 @@ function updateHistorySummary() {
            <table class="table table-striped">
                 <tr>
                    <th scope="col">Stromverbrauch</th>
-                   <th scope="col">CO<sub>2</sub> Verbrauch</th>
+                   <th scope="col">CO<sub>2</sub> Emission</th>
                    <th scope="col">Anzahl der Ereignisse</th>
                 </tr>
                 <tr>
